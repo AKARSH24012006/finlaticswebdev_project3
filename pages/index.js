@@ -14,6 +14,16 @@ const PIPELINE = [
   ["Answered", "LLM + context · SSE"],
 ];
 
+const FEATURES = [
+  ["PDF upload", "Drag-and-drop or multipart form upload, text extracted with pdf-parse"],
+  ["Text chunking", "500-token chunks with 50-token overlap"],
+  ["OpenAI embeddings", "text-embedding-3-small, 1536 dimensions, batched"],
+  ["Vector similarity search", "pgvector cosine similarity, top 5 chunks, HNSW index"],
+  ["Claude RAG integration", "Retrieved chunks sent to Claude (or GPT-4o-mini fallback) as grounded context"],
+  ["Streaming chat", "Answers stream token by token over Server-Sent Events (SSE)"],
+  ["Source citations", "Every answer cites [n] chunks; click to see the source passage and its similarity score"],
+];
+
 export default function HomePage() {
   const router = useRouter();
   const [docs, setDocs] = useState(null);
@@ -49,6 +59,18 @@ export default function HomePage() {
                 <div className="n">0{i + 1}</div>
                 <b>{b}</b>
                 <span>{s}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="block" id="features">
+          <h2 className="section">Features</h2>
+          <div className="features">
+            {FEATURES.map(([b, s]) => (
+              <div className="card feature" key={b}>
+                <span className="tick">✓</span>
+                <div><b>{b}</b><span>{s}</span></div>
               </div>
             ))}
           </div>

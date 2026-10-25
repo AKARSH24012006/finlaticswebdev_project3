@@ -24,7 +24,7 @@ export default function ChunkSourceList({ sources, msgId, defaultOpen = false })
   if (!sources || !sources.length) return null;
   return (
     <details className="ledger" open={defaultOpen}>
-      <summary>Sources · {sources.length} chunks · cosine similarity</summary>
+      <summary>Source citations · {sources.length} chunks · cosine similarity</summary>
       <div className="sources">
         {sources.map((s) => (
           <Source key={s.id} src={s} id={`src-${msgId}-${s.n}`} />

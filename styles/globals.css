@@ -108,6 +108,13 @@ section.block { padding: 18px 0 40px; }
 .pipe span { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 @media (max-width: 860px) { .pipeline { grid-template-columns: repeat(2, 1fr); } }
 
+/* Features */
+.features { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.feature { display: flex; gap: 12px; padding: 14px 16px; align-items: flex-start; }
+.feature .tick { color: var(--ok); font-weight: 600; line-height: 1.4; }
+.feature b { display: block; font-size: 15px; }
+.feature span { font-size: 14px; color: var(--ink-2); }
+
 /* Doc list */
 .doclist { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 .doc { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; text-decoration: none; transition: transform .12s, box-shadow .12s; }

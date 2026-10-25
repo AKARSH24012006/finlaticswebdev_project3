@@ -3,6 +3,19 @@
 Finlatics ANDP **Project-3**: upload a PDF, ask questions about it, and get answers streamed
 back in real time, grounded **only** in the document, with every claim cited to the chunk it came from.
 
+**Live demo:** https://finlaticswebdev-project3-omega.vercel.app
+
+## Features
+
+- [x] **PDF upload**: `<form enctype="multipart/form-data">` with `<input type="file" accept="application/pdf">` plus drag-and-drop → `POST /api/upload` (formidable) → text extraction with `pdf-parse`
+- [x] **Text chunking**: 500 tokens, 50-token overlap (`lib/chunker.js`)
+- [x] **OpenAI embeddings**: `text-embedding-3-small` (`lib/embedder.js`)
+- [x] **Vector similarity search**: pgvector cosine similarity `1 - (embedding <=> query)`, top 5, HNSW index (`lib/vectorSearch.js`)
+- [x] **Claude RAG integration**: `@anthropic-ai/sdk` `messages.stream()` with the retrieved chunks as context (`lib/claudeRAG.js`). Falls back to OpenAI `gpt-4o-mini` when no `ANTHROPIC_API_KEY` is set.
+- [x] **Streaming chat**: Server-Sent Events, `Content-Type: text/event-stream` (`pages/api/chat.js` → `lib/sseClient.js`)
+- [x] **Source citations**: answers cite `[n]`, and the UI shows each cited chunk with its cosine similarity (`components/ChunkSourceList.jsx`)
+- [x] **Deployed to Vercel** with Neon Postgres + pgvector
+
 ## RAG pipeline
 
 | # | Step | Implementation | File |
