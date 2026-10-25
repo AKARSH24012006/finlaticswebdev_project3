@@ -1,0 +1,27 @@
+{
+  "name": "finlaticswebdev-project3",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Chatbot with Document RAG — PDF upload, OpenAI embeddings, pgvector cosine search, streamed answers with source citations",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node scripts/test-chunker.js",
+    "db:init": "node scripts/init-db.js"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "formidable": "^3.5.2",
+    "gpt-tokenizer": "^2.8.1",
+    "next": "14.2.35",
+    "openai": "^4.77.0",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.13.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}
