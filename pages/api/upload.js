@@ -43,7 +43,11 @@ export default async function handler(req, res) {
     try {
       extracted = await extractText(buffer);
     } catch (e) {
-      return res.status(422).json({ error: "Couldn't read this PDF (it may be encrypted or corrupted)." });
+      console.error("pdf-parse failed:", e);
+      return res.status(422).json({
+        error: "Couldn't read this PDF (it may be encrypted or corrupted).",
+        detail: String((e && e.message) || e).slice(0, 300),
+      });
     }
     if (!extracted.text || extracted.text.length < 20) {
       return res.status(422).json({
