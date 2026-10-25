@@ -30,6 +30,13 @@ export default function PdfUploader({ onReady }) {
       const upJson = await up.json().catch(() => ({}));
       if (!up.ok) throw new Error(upJson.error || `Upload failed (${up.status})`);
 
+      if (upJson.deduplicated) {
+        // Same text already embedded — reuse it, no new OpenAI calls.
+        setStage("ready");
+        onReady && onReady(upJson.document);
+        return;
+      }
+
       setStage("process");
       const pr = await fetch("/api/process", {
         method: "POST",
@@ -58,18 +65,37 @@ export default function PdfUploader({ onReady }) {
       onDrop={(e) => { e.preventDefault(); setOver(false); if (!busy) handleFile(e.dataTransfer.files[0]); }}
     >
       <div className="mono muted" style={{ fontSize: 12 }}>PDF · up to 4 MB · selectable text</div>
-      <h3>{busy ? fileName : "Drop a PDF here"}</h3>
-      <p>{busy ? "Hang tight — this usually takes a few seconds." : "or pick one from your computer"}</p>
-      <input
-        ref={input}
-        type="file"
-        accept="application/pdf,.pdf"
-        hidden
-        onChange={(e) => { handleFile(e.target.files[0]); e.target.value = ""; }}
-      />
-      <button className="btn" disabled={busy} onClick={() => input.current && input.current.click()}>
-        {busy ? "Working…" : "Choose PDF"}
-      </button>
+      <h3>{busy ? fileName : "Upload a PDF"}</h3>
+      <p>{busy ? "Hang tight — this usually takes a few seconds." : "Drag it here, or choose a file and click Upload."}</p>
+      <form
+        className="upload-form"
+        action="/api/upload"
+        method="post"
+        encType="multipart/form-data"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = input.current && input.current.files[0];
+          if (!f) return setError("Choose a PDF first.");
+          handleFile(f);
+        }}
+      >
+        <label htmlFor="pdf-file" className="sr-label">PDF file</label>
+        <input
+          id="pdf-file"
+          ref={input}
+          name="file"
+          type="file"
+          accept="application/pdf,.pdf"
+          required
+          disabled={busy}
+          className="file-input"
+          data-testid="pdf-upload-input"
+          onChange={(e) => { if (e.target.files[0]) { setError(""); setFileName(e.target.files[0].name); } }}
+        />
+        <button type="submit" className="btn" disabled={busy}>
+          {busy ? "Working…" : "Upload PDF"}
+        </button>
+      </form>
 
       {stage && (
         <div className="progress" aria-live="polite">

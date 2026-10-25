@@ -7,13 +7,22 @@ back in real time, grounded **only** in the document, with every claim cited to 
 
 | # | Step | Implementation | File |
 |---|------|----------------|------|
-| 1 | PDF uploaded | multipart upload via `formidable` (≤ 4 MB, `%PDF-` magic-byte check) | `pages/api/upload.js` |
-| 2 | Text extracted | `pdf-parse` | `lib/pdfExtractor.js` |
+| 1 | PDF uploaded | `<form enctype="multipart/form-data">` + drag-and-drop → `formidable` (≤ 4 MB, `%PDF-` magic-byte check) | `components/PdfUploader.jsx`, `pages/api/upload.js` |
+| 2 | Text extracted | `pdf-parse` v2 (current pdf.js; v1's 2018 engine fails on many modern PDFs with "bad XRef entry") | `lib/pdfExtractor.js` |
 | 3 | Chunked | **500 tokens, 50-token overlap** (cl100k_base via `gpt-tokenizer`) | `lib/chunker.js` |
 | 4 | Embedded | OpenAI **`text-embedding-3-small`** (1536-d), batched | `lib/embedder.js` |
 | 5 | Stored | PostgreSQL + **pgvector** `vector(1536)` with HNSW `vector_cosine_ops` index | `pages/api/process.js`, `sql/enable-pgvector.sql` |
-| 6 | Searched | **cosine similarity** (`1 - (embedding <=> query)`), **top 5** chunks | `lib/vectorSearch.js` |
+| 6 | Searched | **cosine similarity** (`1 - (embedding <=> query)`), **top 5** chunks, ≥ 0.30 similarity | `lib/vectorSearch.js` |
 | 7 | Answered | LLM + retrieved context, **streamed over SSE**, numbered **source citations** | `lib/claudeRAG.js`, `pages/api/chat.js` |
+
+### Production safeguards
+- **Relevance threshold:** chunks below **0.30 cosine similarity** (`MIN_SIMILARITY`) are dropped. If none pass, the user gets an honest "not found in this document" reply and the LLM is never called with weak context.
+- **Token budget guard:** retrieved context is capped at **6,000 tokens** (`CONTEXT_TOKEN_BUDGET`) and chat history at **2,000 tokens**, both counted with the same cl100k tokenizer as the chunker.
+- **Embedding cache:** a **SHA-256 hash of the extracted text** is stored on each document. Re-uploading the same PDF reuses the existing embeddings with zero OpenAI calls.
+- **Scanned / image-only PDFs:** if a PDF has fewer than 100 characters of text, or under 25 characters per page, upload stops with an OCR hint instead of creating an empty document.
+- **Upload validation:** 4 MB limit, `%PDF-` magic-byte check, clear errors for encrypted or corrupt files.
+
+> **Why 50-token overlap?** The Project-3 brief specifies 500 tokens with 50 overlap, so that's the default. For dense legal or academic text, 75–100 tokens (15–20%) preserves more continuity at chunk boundaries. The constant lives in `lib/chunker.js`.
 
 **Answer model:** Claude (Anthropic) when `ANTHROPIC_API_KEY` is set; otherwise it falls back
 automatically to OpenAI (`gpt-4o-mini`), so the whole app runs on a single OpenAI key.

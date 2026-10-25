@@ -6,8 +6,12 @@
 //   event: error    data: { error }
 import { query, ensureSchema } from "../../lib/db";
 import { embed } from "../../lib/embedder";
-import { search, TOP_K } from "../../lib/vectorSearch";
-import { streamAnswer, activeProvider } from "../../lib/claudeRAG";
+import { search, TOP_K, MIN_SIMILARITY } from "../../lib/vectorSearch";
+import { streamAnswer, activeProvider, selectWithinBudget } from "../../lib/claudeRAG";
+
+const NO_MATCH_MESSAGE =
+  "I couldn't find anything in this document that's relevant enough to answer that " +
+  `(no passage scored above ${MIN_SIMILARITY} cosine similarity). Try rephrasing, or ask about a topic the document covers.`;
 import { sendError } from "../../lib/http";
 
 export const config = { maxDuration: 60 };
@@ -34,7 +38,8 @@ export default async function handler(req, res) {
     if (doc.status !== "ready") return res.status(409).json({ error: `Document is not ready yet (status: ${doc.status}).` });
 
     const qVec = await embed(q); // embed question with the same model as the chunks
-    chunks = await search(qVec, doc.id, TOP_K); // cosine similarity, top 5
+    const hits = await search(qVec, doc.id, TOP_K); // cosine similarity, top 5, above threshold
+    chunks = selectWithinBudget(hits).picked; // token budget guard
   } catch (err) {
     return sendError(res, err);
   }
@@ -57,6 +62,13 @@ export default async function handler(req, res) {
   req.on("close", () => {
     aborted = true;
   });
+
+  if (chunks.length === 0) {
+    // Nothing relevant enough: answer honestly instead of sending weak context to the LLM.
+    send(res, "token", { text: NO_MATCH_MESSAGE });
+    send(res, "done", { ...activeProvider(), noMatch: true });
+    return res.end();
+  }
 
   try {
     for await (const text of streamAnswer(q, chunks, Array.isArray(history) ? history : [])) {

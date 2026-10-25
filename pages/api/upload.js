@@ -3,7 +3,7 @@ import { formidable } from "formidable";
 import fs from "fs/promises";
 import crypto from "crypto";
 import { query, ensureSchema, DOC_COLUMNS } from "../../lib/db";
-import { extractText } from "../../lib/pdfExtractor";
+import { extractText, checkExtractable } from "../../lib/pdfExtractor";
 import { sendError } from "../../lib/http";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
@@ -49,22 +49,27 @@ export default async function handler(req, res) {
         detail: String((e && e.message) || e).slice(0, 300),
       });
     }
-    if (!extracted.text || extracted.text.length < 20) {
-      return res.status(422).json({
-        error: "No selectable text found. This looks like a scanned/image-only PDF, which needs OCR first.",
-      });
-    }
+    const check = checkExtractable(extracted); // scanned / image-only PDF guard
+    if (!check.ok) return res.status(422).json({ error: check.error, code: "NO_TEXT" });
+
+    // Embedding cache: identical text → reuse the already-embedded document.
+    const contentHash = crypto.createHash("sha256").update(extracted.text).digest("hex");
+    const existing = await query(
+      `SELECT ${DOC_COLUMNS} FROM documents WHERE content_hash = $1 AND status = 'ready' ORDER BY created_at LIMIT 1`,
+      [contentHash]
+    );
+    if (existing.rows[0]) return res.status(200).json({ document: existing.rows[0], deduplicated: true });
 
     const fileName = file.originalFilename || "document.pdf";
     const title = ((extracted.title && extracted.title.trim()) || fileName.replace(/\.pdf$/i, "")).slice(0, 200);
 
     const { rows } = await query(
-      `INSERT INTO documents (id, title, file_name, page_count, char_count, text, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
+      `INSERT INTO documents (id, title, file_name, page_count, char_count, text, content_hash, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'uploaded')
        RETURNING ${DOC_COLUMNS}`,
-      [crypto.randomUUID(), title, fileName, extracted.pageCount, extracted.text.length, extracted.text]
+      [crypto.randomUUID(), title, fileName, extracted.pageCount, extracted.text.length, extracted.text, contentHash]
     );
-    return res.status(201).json({ document: rows[0] });
+    return res.status(201).json({ document: rows[0], deduplicated: false });
   } catch (err) {
     return sendError(res, err);
   }

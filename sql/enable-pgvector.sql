@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS chunks (
   embedding   vector(1536)                         -- OpenAI text-embedding-3-small
 );
 
+-- SHA-256 of the extracted text: identical PDFs reuse existing embeddings
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS content_hash TEXT;
+CREATE INDEX IF NOT EXISTS documents_content_hash_idx ON documents(content_hash);
+
 CREATE INDEX IF NOT EXISTS chunks_document_id_idx ON chunks(document_id);
 
 -- Approximate-nearest-neighbour index for cosine distance (<=>)
